@@ -1,0 +1,57 @@
+{
+  "name": "instagram-raider",
+  "description": "API-Less Instagram pictures and videos downloader",
+  "version": "0.1.0",
+  "private": true,
+  "author": "Mintonne",
+  "repository": "github:Mintonne/instagram-raider",
+  "main": "background.js",
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint",
+    "electron:build": "vue-cli-service electron:build",
+    "electron:serve": "vue-cli-service electron:serve",
+    "postinstall": "electron-builder install-app-deps",
+    "postuninstall": "electron-builder install-app-deps",
+    "release": "standard-version"
+  },
+  "standard-version": {
+    "skip": {
+      "commit": true,
+      "tag": true
+    }
+  },
+  "dependencies": {
+    "axios": "^0.18.0",
+    "create-hash": "^1.2.0",
+    "fs-extra": "^7.0.1",
+    "standard-version": "^5.0.0",
+    "vue": "^2.5.22",
+    "vue-material-design-icons": "^3.0.0",
+    "vue-sweetalert2": "^1.6.4",
+    "vuetify": "^1.5.1",
+    "vuex": "^3.1.0",
+    "vuex-persistedstate": "^2.5.4"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "^3.4.0",
+    "@vue/cli-plugin-eslint": "^3.4.0",
+    "@vue/cli-service": "^3.4.0",
+    "@vue/eslint-config-standard": "^4.0.0",
+    "babel-eslint": "^10.0.1",
+    "css-loader": "^2.1.0",
+    "electron": "^4.0.5",
+    "eslint": "^5.14.1",
+    "eslint-plugin-vue": "^5.2.2",
+    "fibers": "^3.1.1",
+    "sass": "^1.16.0",
+    "sass-loader": "^7.1.0",
+    "style-loader": "^0.23.1",
+    "stylus": "^0.54.5",
+    "stylus-loader": "^3.0.2",
+    "vue-cli-plugin-electron-builder": "^1.0.2",
+    "vue-template-compiler": "^2.5.21",
+    "vuetify-loader": "^1.2.1"
+  }
+}
