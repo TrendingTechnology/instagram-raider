@@ -85,7 +85,7 @@
             class="px-5 py-2"
             :class="{ 'closed': !showMoreOptions }"
             :disabled="isDownloading"
-            @click="showMoreOptions = !showMoreOptions">
+            @click.native="ToggleMoreOptions">
             {{ showMoreOptions ? '$vuetify.icons.up' : '$vuetify.icons.down' }}
           </v-icon>
         </v-flex>
@@ -594,6 +594,9 @@ export default {
         if (selectedPath == null) return
         this.saveFolder = selectedPath[0]
       })
+    },
+    ToggleMoreOptions () {
+      this.showMoreOptions = !this.showMoreOptions
     }
   }
 }
@@ -631,6 +634,8 @@ export default {
 }
 
 #more-options {
+  cursor: pointer;
+
   &.closed {
     animation: mover 0.65s infinite alternate;
   }
