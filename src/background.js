@@ -1,7 +1,8 @@
 import {
   app,
   protocol,
-  BrowserWindow
+  BrowserWindow,
+  session
 } from 'electron'
 import {
   createProtocol,
@@ -33,24 +34,32 @@ function createWindow () {
     maxHeight: isDevelopment ? null : 600,
     title: 'Instagram Raider',
     autoHideMenuBar: true,
-    maximizable: false,
+    maximizable: true,
     webPreferences: {
       webSecurity: false
     }
   })
 
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.80 Safari/537.36'
+    details.requestHeaders['Referer'] = 'https://www.instagram.com'
+    details.requestHeaders['X-Requested-With'] = 'XMLHttpRequest'
+    // eslint-disable-next-line standard/no-callback-literal
+    callback({ requestHeaders: details.requestHeaders })
+  })
+
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
     win.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
-    // if (!process.env.IS_TEST) win.webContents.openDevTools();
+    // if (!process.env.IS_TEST) win.webContents.openDevTools()
   } else {
     createProtocol('app')
     // Load the index.html when not in development
     win.loadURL('app://./index.html')
   }
 
-  win.webContents.session.clearCache(() => {
-
+  win.webContents.session.clearStorageData({
+    storages: ['appcache']
   })
 
   win.on('closed', () => {
