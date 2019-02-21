@@ -17,7 +17,7 @@
             md6
             lg5>
             <v-text-field
-              v-model="username"
+              v-model="userInput"
               :clearable="!isDownloading"
               solo
               :readonly="fetchingMedia"
@@ -326,7 +326,7 @@ export default {
   name: 'Home',
   data () {
     return {
-      username: '',
+      userInput: '',
       activeSection: 1,
       mediatype: [1, 2],
       showMoreOptions: false,
@@ -392,7 +392,7 @@ export default {
       this.fetchingMedia = true
       this.downloadingPosts = false
 
-      axios.get(`https://www.instagram.com/${this.username}/`)
+      axios.get(`https://www.instagram.com/${this.userInput}/`)
         .then((response) => {
           const body = response.data
 
