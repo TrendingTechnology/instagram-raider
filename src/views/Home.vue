@@ -389,14 +389,7 @@ export default {
     GetProfile () {
       if (!this.$refs.form.validate()) return
 
-      this.showMoreOptions = false
-      this.currentIndex = 0
-      this.downloadedCount = 0
-      this.pendingDownloads.splice(0, this.pendingDownloads.length)
-      this.failedDownloads.splice(0, this.failedDownloads.length)
-
-      this.fetchingMedia = true
-      this.downloadingPosts = false
+      this.ResetUI()
 
       axios.get(`https://www.instagram.com/${this.userInput}/`)
         .then((response) => {
@@ -600,6 +593,16 @@ export default {
         if (selectedPath == null) return
         this.saveFolder = selectedPath[0]
       })
+    },
+    ResetUI () {
+      this.showMoreOptions = false
+      this.currentIndex = 0
+      this.downloadedCount = 0
+      this.pendingDownloads.splice(0, this.pendingDownloads.length)
+      this.failedDownloads.splice(0, this.failedDownloads.length)
+
+      this.fetchingMedia = true
+      this.downloadingPosts = false
     },
     ToggleMoreOptions () {
       this.showMoreOptions = !this.showMoreOptions
