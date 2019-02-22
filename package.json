@@ -26,10 +26,10 @@
     "axios": "^0.18.0",
     "create-hash": "^1.2.0",
     "fs-extra": "^7.0.1",
-    "vue": "^2.5.22",
+    "vue": "^2.6.7",
     "vue-material-design-icons": "^3.0.0",
     "vue-sweetalert2": "^1.6.4",
-    "vuetify": "^1.5.1",
+    "vuetify": "^1.5.2",
     "vuex": "^3.1.0",
     "vuex-persistedstate": "^2.5.4"
   },
@@ -51,7 +51,7 @@
     "stylus": "^0.54.5",
     "stylus-loader": "^3.0.2",
     "vue-cli-plugin-electron-builder": "^1.0.2",
-    "vue-template-compiler": "^2.5.21",
+    "vue-template-compiler": "^2.6.7",
     "vuetify-loader": "^1.2.1"
   }
 }
