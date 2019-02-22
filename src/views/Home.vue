@@ -22,7 +22,7 @@
               solo
               :readonly="fetchingMedia"
               :loading="fetchingMedia"
-              :rules="[(value => !!value || 'Required.'), (value => (value && /^[a-zA-Z0-9_][a-zA-Z0-9_.]*$/ig.test(value)) || 'Invalid username')]"
+              :rules="rules"
               placeholder="Instagram username" />
           </v-flex>
 
@@ -330,6 +330,10 @@ export default {
       activeSection: 1,
       mediatype: [1, 2],
       showMoreOptions: false,
+      rules: [
+        value => !!value || 'Required.',
+        value => (value && (usernameRegex.test(value) || postRegex.test(value))) || 'Unknown format'
+      ],
       fromDate: null,
       toDate: null,
       rhxGis: null,
