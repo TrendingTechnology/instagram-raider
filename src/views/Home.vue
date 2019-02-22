@@ -56,10 +56,12 @@
             multiple
             mandatory>
             <v-btn
+              :disabled="isDownloading"
               :value="1">
               <span>Images</span>
             </v-btn>
             <v-btn
+              :disabled="isDownloading"
               :value="2">
               <span>Videos</span>
             </v-btn>
