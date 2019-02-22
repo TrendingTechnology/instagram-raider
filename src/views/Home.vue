@@ -23,7 +23,7 @@
               :readonly="fetchingMedia"
               :loading="fetchingMedia"
               :rules="rules"
-              placeholder="Instagram username" />
+              placeholder="Username or post" />
           </v-flex>
 
           <v-flex
@@ -35,7 +35,7 @@
               large
               class="attached-btn my-0"
               :loading="fetchingMedia"
-              @click="GetProfile">
+              @click="DetectType">
               <span>Start</span>
             </v-btn>
           </v-flex>
@@ -175,69 +175,79 @@
       </div>
 
       <!-- Downloading stats -->
-      <v-layout
-        v-if="(fetchingMedia || downloadingPosts) && !showMoreOptions"
-        mt-3
-        mb-4
-        justify-center
-        row>
-        <v-flex xs3>
-          <v-card
-            flat
-            color="transparent"
-            height="100%">
-            <div class="headline">
-              Links
-            </div>
-            <div class="headline">
-              {{ pendingDownloads.length }}
-            </div>
-          </v-card>
-        </v-flex>
-        <v-flex xs3>
-          <v-progress-circular
-            :rotate="-90"
-            :width="12"
-            :size="120"
-            color="primary"
-            :value="downloadProgress">
-            <span
-              class="title font-weight-regular"
-              @click="showDownloadProgress = !showDownloadProgress">
-              {{ showDownloadProgress ? `${downloadProgress}%` : currentIndex }}
-            </span>
-          </v-progress-circular>
-        </v-flex>
-        <v-flex xs3>
-          <v-card
-            flat
-            color="transparent"
-            height="100%">
-            <div class="headline">
-              Failed
-            </div>
-            <div class="headline">
-              {{ failedDownloads.length }}
-            </div>
-          </v-card>
-        </v-flex>
-      </v-layout>
+      <div v-if="(fetchingMedia || downloadingPosts) && !showMoreOptions">
+        <v-layout
+          mt-3
+          mb-4
+          justify-center
+          row>
+          <v-flex xs3>
+            <v-card
+              flat
+              color="transparent"
+              height="100%">
+              <div class="headline">
+                Links
+              </div>
+              <div class="headline">
+                {{ pendingDownloads.length }}
+              </div>
+            </v-card>
+          </v-flex>
+          <v-flex xs3>
+            <v-progress-circular
+              :rotate="-90"
+              :width="12"
+              :size="120"
+              color="primary"
+              :value="downloadProgress">
+              <span
+                class="title font-weight-regular"
+                @click="showDownloadProgress = !showDownloadProgress">
+                {{ showDownloadProgress ? `${downloadProgress}%` : currentIndex }}
+              </span>
+            </v-progress-circular>
+          </v-flex>
+          <v-flex xs3>
+            <v-card
+              flat
+              color="transparent"
+              height="100%">
+              <div class="headline">
+                Failed
+              </div>
+              <div class="headline">
+                {{ failedDownloads.length }}
+              </div>
+            </v-card>
+          </v-flex>
+        </v-layout>
 
-      <!-- Cancel Download Button -->
-      <v-layout
-        v-if="isDownloading"
-        justify-center>
-        <v-flex xs11>
-          <v-btn
-            color="error"
-            class="ma-0"
-            flat
-            :ripple="false"
-            @click="CancelDownload">
-            Cancel
-          </v-btn>
-        </v-flex>
-      </v-layout>
+        <!-- Cancel Download Button -->
+        <v-layout
+          justify-center>
+          <v-flex xs11>
+            <v-btn
+              v-if="isDownloading"
+              color="error"
+              class="ma-0"
+              flat
+              :ripple="false"
+              @click="CancelDownload">
+              Cancel
+            </v-btn>
+            <v-btn
+              v-else
+              color="primary"
+              class="ma-0"
+              flat
+              :ripple="false"
+              @click="OpenDownloadFolder">
+              Open Folder
+            </v-btn>
+          </v-flex>
+        </v-layout>
+      </div>
     </div>
 
     <!-- Settings Page -->
@@ -318,11 +328,17 @@
 </template>
 
 <script>
-const { dialog } = require('electron').remote
+const { dialog, shell } = require('electron').remote
 const axios = require('axios')
 const createHash = require('create-hash')
 const path = require('path')
 const fs = require('fs-extra')
+
+const usernameRegex = /@?[a-zA-Z0-9_][a-zA-Z0-9_.]*$/i
+const postRegex = /(?:https?:\/\/)?(?:www\.)?(:?instagram\.com)?\/?p\/([a-zA-Z0-9_-]+)\/?$/
+
+const profileHash = 'f2405b236d85e8296cf30347c9f08c2a'
+const postHash = '477b65a610463740ccdb83135b2014db'
 
 export default {
   name: 'Home',
@@ -331,6 +347,8 @@ export default {
       userInput: '',
       activeSection: 1,
       mediatype: [1, 2],
+      getimages: true,
+      getvideos: true,
       showMoreOptions: false,
       rules: [
         value => !!value || 'Required.',
@@ -348,7 +366,8 @@ export default {
       failedDownloads: [],
       showDownloadProgress: true,
       fetchingMedia: false,
-      downloadingPosts: false
+      downloadingPosts: false,
+      parentFolder: null
     }
   },
   computed: {
@@ -386,25 +405,47 @@ export default {
     }
   },
   methods: {
-    GetProfile () {
+    DetectType () {
       if (!this.$refs.form.validate()) return
 
+      if (usernameRegex.test(this.userInput)) {
+        this.GetProfile()
+      } else if (postRegex.test(this.userInput)) {
+        this.GetPost()
+      }
+    },
+    GetProfile () {
       this.ResetUI()
 
       axios.get(`https://www.instagram.com/${this.userInput}/`)
         .then((response) => {
           const body = response.data
 
-          const isPrivate = RegExp('"is_private":([a-z]*)', 'g').exec(body)[1]
+          let rawHTML = document.createElement('html')
+          rawHTML.innerHTML = body
+          let sharedData = JSON.parse(rawHTML.children[1].children[1].firstChild.data.match(/\{(?:\n|.)*\}/))
 
-          if (isPrivate === 'true') {
+          const isPrivate = sharedData.entry_data.ProfilePage[0].graphql.user.is_private
+          // const viewer = sharedData.config.viewer
+
+          if (isPrivate) {
+            // if (viewer == null) {
+            //   this.fetchingMedia = false
+            //   return this.$swal('Unauthorized', 'This is a private account. Login to proceed', 'error')
+            // }
+
+            // if (!sharedData.entry_data.ProfilePage[0].graphql.user.followed_by_viewer) {
+            //   this.fetchingMedia = false
+            //   return this.$swal('Unauthorized', 'You are not a follower', 'error')
+            // }
+
             this.fetchingMedia = false
             return this.$swal('Error', 'Private accounts are not supported.', 'error')
           }
 
-          this.rhxGis = RegExp('"rhx_gis":"([a-f0-9]{32})"', 'g').exec(body)[1]
-          this.userid = RegExp('"id":"([0-9]*)"', 'g').exec(body)[1]
-          this.mediaCount = RegExp('"edge_owner_to_timeline_media":{"count":([0-9]*)', 'g').exec(body)[1]
+          this.rhxGis = sharedData.rhx_gis
+          this.userid = sharedData.entry_data.ProfilePage[0].graphql.user.id
+          this.mediaCount = sharedData.entry_data.ProfilePage[0].graphql.user.edge_owner_to_timeline_media.count
 
           this.IterateProfile()
         })
@@ -418,10 +459,9 @@ export default {
 
       const variables = JSON.stringify(this.QueryVariables(this.userid, this.mediaCount, cursor))
 
-      axios.get(`https://www.instagram.com/graphql/query/?query_hash=f2405b236d85e8296cf30347c9f08c2a&variables=${variables}`, {
+      axios.get(`https://www.instagram.com/graphql/query/?query_hash=${profileHash}&variables=${variables}`, {
         headers: {
-          'X-Instagram-GIS': this.GenerateGIS(variables),
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Instagram-GIS': this.GenerateGIS(variables)
         }
       })
         .then((response) => {
@@ -432,80 +472,8 @@ export default {
 
           this.mediaCount -= edges.length
 
-          edges.forEach((media) => {
-            const username = media.node.owner.username
-            const userid = media.node.owner.id
-            const mediatype = media.node.__typename
-            const epochTimestamp = new Date(media.node.taken_at_timestamp * 1000).setHours(0, 0, 0, 0)
-            const timestamp = new Date(media.node.taken_at_timestamp * 1000).toISOString().substring(0, 10)
-            const shortcode = media.node.shortcode
-
-            const epochToday = new Date(Date.now()).setHours(0, 0, 0, 0)
-
-            const minDate = this.fromDate ? new Date(this.fromDate).setHours(0, 0, 0, 0) : epochToday
-            const maxDate = this.toDate ? new Date(this.toDate).setHours(0, 0, 0, 0) : 1286312400000
-
-            if (epochTimestamp > minDate) {
-              return
-            }
-
-            if (epochTimestamp < maxDate) {
-              this.mediaCount = 0
-              return
-            }
-
-            const getimages = this.mediatype.includes(1)
-            const getvideos = this.mediatype.includes(2)
-
-            if (mediatype === 'GraphImage' && getimages) {
-              this.pendingDownloads.push({
-                userid,
-                username,
-                id: media.node.id,
-                link: media.node.display_resources.reverse()[0].src,
-                timestamp,
-                shortcode,
-                video: false
-              })
-            }
-            if (mediatype === 'GraphVideo' && getvideos) {
-              this.pendingDownloads.push(
-                {
-                  userid,
-                  username,
-                  id: media.node.id,
-                  link: media.node.video_url,
-                  timestamp,
-                  shortcode,
-                  video: true
-                })
-            }
-            if (mediatype === 'GraphSidecar') {
-              media.node.edge_sidecar_to_children.edges.forEach(edge => {
-                if (edge.node.__typename === 'GraphImage' && getimages) {
-                  this.pendingDownloads.push({
-                    userid,
-                    username,
-                    id: edge.node.id,
-                    link: edge.node.display_resources.reverse()[0].src,
-                    timestamp,
-                    shortcode,
-                    video: false
-                  })
-                } else if (edge.node.__typename === 'GraphVideo' && getvideos) {
-                  this.pendingDownloads.push(
-                    {
-                      userid,
-                      username,
-                      id: edge.node.id,
-                      link: edge.node.video_url,
-                      timestamp,
-                      shortcode,
-                      video: true
-                    })
-                }
-              })
-            }
+          edges.forEach((edge) => {
+            this.AddLink(edge.node)
           })
 
           if (this.maxPosts !== null && this.maxPosts > 0 && this.pendingDownloads.length >= this.maxPosts) {
@@ -520,18 +488,125 @@ export default {
           this.fetchingMedia = false
           this.downloadingPosts = true
 
-          const parentFolder = path.join(this.saveFolder, this.username)
-
-          if (!fs.existsSync(parentFolder)) {
-            fs.mkdirpSync(parentFolder)
-          }
-
           this.DownloadPost()
         })
-        .catch(() => {
+        .catch((err) => {
+          console.log(err)
           this.$swal('Error', 'Request Error', 'error')
           this.fetchingMedia = false
         })
+    },
+    GetPost () {
+      this.ResetUI()
+
+      const postToken = postRegex.exec(this.userInput)
+
+      if (postToken.length <= 0) {
+        return this.$swal('Error', 'Invalid link', 'error')
+      }
+
+      const variables = JSON.stringify({ shortcode: postToken.reverse()[0] })
+
+      axios.get(`https://www.instagram.com/graphql/query/?query_hash=${postHash}&variables=${variables}`, {
+        headers: {
+          'X-Instagram-GIS': this.GenerateGIS(variables),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        maxRedirects: 0
+      })
+        .then((response) => {
+          const body = response.data
+
+          if (body.data == null) {
+            return this.$swal('Error', 'Post not found.', 'error')
+          }
+
+          this.AddLink(body.data.shortcode_media, true)
+
+          this.fetchingMedia = false
+          this.downloadingPosts = true
+
+          this.DownloadPost()
+        })
+        .catch((err) => {
+          this.fetchingMedia = false
+
+          if (err.response.status === 403) {
+            return this.$swal('Error', 'Unauthorized Access', 'error')
+          }
+
+          this.$swal('Error', 'Post not found.', 'error')
+        })
+    },
+    AddLink (edge, ignoreDates = false) {
+      const username = edge.owner.username
+      const userid = edge.owner.id
+      const shortcode = edge.shortcode
+      const mediatype = edge.__typename
+      const epochTimestamp = new Date(edge.taken_at_timestamp * 1000).setHours(0, 0, 0, 0)
+      const timestamp = new Date(edge.taken_at_timestamp * 1000).toISOString().substring(0, 10)
+
+      const epochToday = new Date(Date.now()).setHours(0, 0, 0, 0)
+
+      const minDate = this.fromDate ? new Date(this.fromDate).setHours(0, 0, 0, 0) : epochToday
+      const maxDate = this.toDate ? new Date(this.toDate).setHours(0, 0, 0, 0) : 1286312400000
+
+      if (epochTimestamp > minDate && !ignoreDates) {
+        return
+      }
+
+      if (epochTimestamp < maxDate && !ignoreDates) {
+        this.mediaCount = 0
+        return
+      }
+
+      if (mediatype === 'GraphImage' && this.getimages) {
+        this.pendingDownloads.push({
+          userid,
+          username,
+          id: edge.id,
+          link: edge.display_resources.reverse()[0].src,
+          timestamp,
+          shortcode,
+          video: false
+        })
+      } else if (mediatype === 'GraphVideo' && this.getvideos) {
+        this.pendingDownloads.push(
+          {
+            userid,
+            username,
+            id: edge.id,
+            link: edge.video_url,
+            timestamp,
+            shortcode,
+            video: true
+          })
+      } else if (mediatype === 'GraphSidecar') {
+        edge.edge_sidecar_to_children.edges.forEach(edge => {
+          if (edge.node.__typename === 'GraphImage' && this.getimages) {
+            this.pendingDownloads.push({
+              userid,
+              username,
+              id: edge.node.id,
+              link: edge.node.display_resources.reverse()[0].src,
+              timestamp,
+              shortcode,
+              video: false
+            })
+          } else if (edge.node.__typename === 'GraphVideo' && this.getvideos) {
+            this.pendingDownloads.push(
+              {
+                userid,
+                username,
+                id: edge.node.id,
+                link: edge.node.video_url,
+                timestamp,
+                shortcode,
+                video: true
+              })
+          }
+        })
+      }
     },
     DownloadPost () {
       if (!this.downloadingPosts) return
@@ -540,7 +615,13 @@ export default {
 
       if (post == null) return
 
-      const filename = path.resolve(this.saveFolder, post.username, `${post.username}.${post.timestamp}.${post.id}.${post.video ? 'mp4' : 'jpg'}`)
+      this.parentFolder = path.join(this.saveFolder, post.username)
+
+      if (!fs.existsSync(this.parentFolder)) {
+        fs.mkdirpSync(this.parentFolder)
+      }
+
+      const filename = path.resolve(this.parentFolder, `${post.username}.${post.timestamp}.${post.id}.${post.video ? 'mp4' : 'jpg'}`)
 
       if (fs.existsSync(filename)) {
         this.downloadedCount++
@@ -586,14 +667,6 @@ export default {
     GenerateGIS (queryVariables) {
       return createHash('md5').update(`${this.rhxGis}:${queryVariables}`, 'utf8').digest('hex')
     },
-    ChangeSaveFolder () {
-      dialog.showOpenDialog({
-        properties: ['openDirectory']
-      }, (selectedPath) => {
-        if (selectedPath == null) return
-        this.saveFolder = selectedPath[0]
-      })
-    },
     ResetUI () {
       this.showMoreOptions = false
       this.currentIndex = 0
@@ -603,9 +676,23 @@ export default {
 
       this.fetchingMedia = true
       this.downloadingPosts = false
+
+      this.getimages = this.mediatype.includes(1)
+      this.getvideos = this.mediatype.includes(2)
     },
     ToggleMoreOptions () {
       this.showMoreOptions = !this.showMoreOptions
+    },
+    OpenDownloadFolder () {
+      shell.showItemInFolder(this.parentFolder)
+    },
+    ChangeSaveFolder () {
+      dialog.showOpenDialog({
+        properties: ['openDirectory']
+      }, (selectedPath) => {
+        if (selectedPath == null) return
+        this.saveFolder = selectedPath[0]
+      })
     }
   }
 }
